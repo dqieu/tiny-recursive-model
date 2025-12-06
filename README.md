@@ -7,6 +7,8 @@ Implementation of [Tiny Recursive Model](https://arxiv.org/abs/2510.04871) (TRM)
 
 Official repository is [here](https://github.com/SamsungSAILMontreal/TinyRecursiveModels)
 
+[Interview with Alexia!](https://www.youtube.com/watch?v=P9zzUM0PrBM)
+
 <img width="300" alt="trm-fig3" src="https://github.com/user-attachments/assets/bfe3dd2a-e859-492a-84d5-faf37339f534" />
 
 ## Install
