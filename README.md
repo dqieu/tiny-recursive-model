@@ -9,6 +9,8 @@ Official repository is [here](https://github.com/SamsungSAILMontreal/TinyRecursi
 
 [Interview with Alexia!](https://www.youtube.com/watch?v=P9zzUM0PrBM)
 
+[Paper review by bycloud](https://www.youtube.com/watch?v=ZgwHaI2C-9s)
+
 <img width="300" alt="trm-fig3" src="https://github.com/user-attachments/assets/bfe3dd2a-e859-492a-84d5-faf37339f534" />
 
 ## Install
