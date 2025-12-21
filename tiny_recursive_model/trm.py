@@ -64,11 +64,14 @@ class TinyRecursiveModel(Module):
         self.to_halt_pred = nn.Sequential(
             Reduce('b n d -> b d', 'mean'),
             nn.Linear(dim, 1, bias = False),
-            nn.Sigmoid(),
             Rearrange('... 1 -> ...')
         )
 
         self.halt_loss_weight = halt_loss_weight
+
+        # init
+
+        nn.init.zeros_(self.to_halt_pred[1].weight)
 
     @property
     def device(self):
@@ -161,7 +164,7 @@ class TinyRecursiveModel(Module):
 
             outputs, latents = self.deep_refinement(inputs, outputs, latents)
 
-            halt_prob = self.to_halt_pred(outputs)
+            halt_prob = self.to_halt_pred(outputs).sigmoid()
 
             should_halt = (halt_prob >= halt_prob_thres) | is_last
 
@@ -222,7 +225,9 @@ class TinyRecursiveModel(Module):
 
         pred = self.to_pred(outputs_for_pred)
 
-        halt_prob = self.to_halt_pred(outputs)
+        halt_logits = self.to_halt_pred(outputs)
+
+        halt_prob = halt_logits.sigmoid()
 
         outputs, latents = outputs.detach(), latents.detach()
 
@@ -238,7 +243,7 @@ class TinyRecursiveModel(Module):
 
         is_all_correct = (pred.argmax(dim = -1) == labels).all(dim = -1)
 
-        halt_loss = F.binary_cross_entropy(halt_prob, is_all_correct.float(), reduction = 'none')
+        halt_loss = F.binary_cross_entropy_with_logits(halt_logits, is_all_correct.float(), reduction = 'none')
 
         # total loss and loss breakdown
 
