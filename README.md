@@ -11,6 +11,8 @@ Official repository is [here](https://github.com/SamsungSAILMontreal/TinyRecursi
 
 [Paper review by bycloud](https://www.youtube.com/watch?v=ZgwHaI2C-9s)
 
+[URM](https://arxiv.org/abs/2512.14693)
+
 <img width="300" alt="trm-fig3" src="https://github.com/user-attachments/assets/bfe3dd2a-e859-492a-84d5-faf37339f534" />
 
 ## Install
