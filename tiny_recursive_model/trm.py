@@ -64,16 +64,18 @@ class TinyRecursiveModel(Module):
         # prediction heads
 
         # CLS token uses first position, otherwise mean pooling
-        pool_layer = SelectFirstToken() if use_cls_token else Reduce('b n d -> b d', 'mean')
+        # Create separate instances for each head to avoid module sharing issues
+        def make_pool_layer():
+            return SelectFirstToken() if use_cls_token else Reduce('b n d -> b d', 'mean')
 
         self.to_pred = nn.Sequential(
-            pool_layer,
+            make_pool_layer(),
             nn.Linear(dim, 1, bias = False),
             Rearrange('... 1 -> ...')
         )
 
         self.to_halt_pred = nn.Sequential(
-            pool_layer,
+            make_pool_layer(),
             nn.Linear(dim, 1, bias = False),
             Rearrange('... 1 -> ...')
         )
