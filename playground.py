@@ -20,13 +20,13 @@ if __name__ == '__main__':
                         default="/Users/lkieu/PycharmProjects/Audio-Health-Benchmark/tmp/torgo/wavlm-basep-last/cache.hdf5",
                         help='Path to the HDF5 dataset')
 
-    parser.add_argument('--excluded-idx', '-e', type=int, nargs='*', default=[], help='Indices to exclude from the dataset')
+    parser.add_argument('--excluded-idx', '-e', type=int, nargs='*', default=[1685], help='Indices to exclude from the dataset')
 
     parser.add_argument('--batch-size', '-b', type=int, default=16, help='Batch size for training')
 
     parser.add_argument('--epochs', type=int, default=10, help='Number of training epochs')
 
-    parser.add_argument('--output-dir', '-o', type=str, required=True, help='Path to save the trained model')
+    parser.add_argument('--output-dir', '-o', type=str, default='exps/0', help='Path to save the trained model')
 
     args = parser.parse_args()
 
@@ -39,24 +39,31 @@ if __name__ == '__main__':
         batch_first=True,
         norm_first=True,
     )
+    network = nn.Sequential(
+        nn.TransformerEncoder(
+            transformer_layer,
+            num_layers=2
+        ),
+        nn.LayerNorm(768)
+    )
 
     trm = TinyRecursiveModel(
         dim=768,
-        network = nn.TransformerEncoder(
-            transformer_layer,
-            num_layers = 2
-        ),
+        network = network,
         # network=MLPMixer1D(
         #     dim=768,
         #     depth=1,
         #     seq_len=256,
         # ),
-        use_cls_token=True,
+        use_cls_token=False,
         num_refinement_blocks=3,
         num_latent_refinements=6
     )
 
-    # trm.network.apply(init_transformer)
+    trm.network.apply(init_transformer)
+
+    # Enable detailed refinement debugging (uncomment to see detailed norms)
+    # trm._debug_refinement = True
 
     trm_cfg = get_config_dict(trm)
 
@@ -72,6 +79,7 @@ if __name__ == '__main__':
 
     output_dir.parent.mkdir(parents=True, exist_ok=True)
 
+
     trainer = Trainer(
         trm,
         train_ds,
@@ -85,7 +93,7 @@ if __name__ == '__main__':
 
     trainer_cfg = get_config_dict(trainer)
 
-    trainer.tracker.store_init_configuration(args_cfg | trm_cfg | trainer_cfg)
+    trainer.accelerator.init_trackers("trm", config=args_cfg | trm_cfg | trainer_cfg)
 
     trainer()
 

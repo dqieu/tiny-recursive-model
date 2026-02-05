@@ -29,11 +29,11 @@ dependencies = [
     "ema-pytorch",
     "h5py>=3.14.0",
     "notebook>=7.5.3",
+    "scikit-learn>=1.6.1",
     "torch>=2.4",
+    "tqdm>=4.67.2",
+    "wandb>=0.24.2",
     "x-transformers>=2.9.0",
-    "scikit-learn",
-    "tqdm",
-    "h5py",
 ]
 
 [project.urls]

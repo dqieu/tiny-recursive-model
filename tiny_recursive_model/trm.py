@@ -117,11 +117,26 @@ class TinyRecursiveModel(Module):
         # so it seems for this work, they use only one network
         # the network learns to refine the latents if input is passed in, otherwise it refines the output
 
-        for _ in range(self.num_latent_refinements):
+        for i in range(self.num_latent_refinements):
+            combined = outputs + latents + inputs
 
-            latents = self.network(outputs + latents + inputs)
+            if self.training and hasattr(self, '_debug_refinement'):
+                print(f"  Latent refine {i}: combined_norm={combined.norm().item():.2f}", end='')
 
-        outputs = self.network(outputs + latents)
+            latents = self.network(combined)
+
+            if self.training and hasattr(self, '_debug_refinement'):
+                print(f" -> latents_norm={latents.norm().item():.2f}")
+
+        combined_out = outputs + latents
+
+        if self.training and hasattr(self, '_debug_refinement'):
+            print(f"  Output refine: combined_norm={combined_out.norm().item():.2f}", end='')
+
+        outputs = self.network(combined_out)
+
+        if self.training and hasattr(self, '_debug_refinement'):
+            print(f" -> outputs_norm={outputs.norm().item():.2f}")
 
         return outputs, latents
 
