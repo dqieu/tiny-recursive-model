@@ -19,10 +19,13 @@ nvidia-smi --query-gpu=timestamp,index,power.draw,memory.used \
            --format=csv,noheader -l 1 > "$SLURM_JOB_ID.gpu.csv" &
 LOGGER_PID=$!
 
+OUTDIR="/exps/${SLURM_JOB_ID}"
+mkdir -p "$OUTDIR"
+
 python -m playground -p /home/kieu/links/scratch/speech-health-ai/tmp/torgo/wavlm-basep-last/cache.hdf5 \
                         -e 1685 \
                         -b 16 \
                         --epochs 10 \
-                        -o /exps/"$SLURM_JOB_ID"/ \
+                        -o $OUTDIR
 
 kill $LOGGER_PID
