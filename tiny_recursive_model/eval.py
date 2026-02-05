@@ -72,7 +72,7 @@ def binary_roc_auc(y_true: torch.Tensor, y_score: torch.Tensor, eps: float = 1e-
 
 
 @torch.inference_mode()
-def evaluate(model, dataloader, device, threshold: float = 0.5):
+def evaluate(model, dataloader, device, threshold: float = 0.5, ext: str = ""):
     model.eval()
     model.to(device)
 
@@ -96,6 +96,10 @@ def evaluate(model, dataloader, device, threshold: float = 0.5):
 
     metrics = binary_metrics_from_tensors(y_true, y_prob, threshold=threshold)
 
+    if ext != "":
+        ext = "_" + ext
+
     # Convert to Python floats for logging/printing (optional)
-    metrics = {k: float(v.detach().cpu()) for k, v in metrics.items()}
+    metrics = {k + ext: float(v.detach().cpu()) for k, v in metrics.items()}
+
     return metrics

@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+from pprint import pformat
+
+import accelerate.tracking
 import torch
 from tiny_recursive_model.eval import evaluate
 from torch.nn import Module
@@ -55,7 +59,8 @@ class Trainer(Module):
         ema_decay_rate = 0.999,
         switch_ema_every = 10000,           # switch ema https://arxiv.org/abs/2402.09240
         accelerate_kwargs: dict = dict(),
-        cpu = False
+        cpu = False,
+        output_dir: Path | None = None,
     ):
         super().__init__()
 
@@ -131,11 +136,15 @@ class Trainer(Module):
         if self.ema_model is not None:
             self.ema_model.to(self.accelerator.device)
 
+        self.output_dir = output_dir
+
+        self.tracker = accelerate.tracking.TensorBoardTracker(output_dir.name, output_dir.parent)
+
     def forward(self):
 
         for epoch in range_from_one(self.epochs):
 
-            for i, (dataset_input, dataset_output) in enumerate(self.dataloader):
+            for batch, (dataset_input, dataset_output) in enumerate(self.dataloader):
 
                 num_batches = len(self.dataloader)
 
@@ -145,7 +154,7 @@ class Trainer(Module):
 
                     loss, (main_loss, halt_loss), outputs, latents, pred, halt = self.model(dataset_input, outputs, latents, labels = dataset_output)
 
-                    self.accelerator.print(f'[Epoch {epoch} Batch {i}/{num_batches} ({recurrent_step} / {self.max_recurrent_steps})] loss: {main_loss.mean().item():.3f} | halt loss: {halt_loss.mean().item():.3f}')
+                    self.accelerator.print(f'[Epoch {epoch} Batch {batch}/{num_batches} ({recurrent_step} / {self.max_recurrent_steps})] loss: {main_loss.mean().item():.3f} | halt loss: {halt_loss.mean().item():.3f}')
 
                     self.accelerator.backward(loss)
 
@@ -174,12 +183,22 @@ class Trainer(Module):
 
             if self.val_dataloader:
                 self.accelerator.print(f'--- Epoch {epoch} validation ---')
-                results = evaluate(self.model, self.val_dataloader, device=self.accelerator.device)
+                results = evaluate(self.model,
+                                   self.val_dataloader,
+                                   device=self.accelerator.device,
+                                   ext='val',
+                                   threshold=self.halt_prob_thres)
+                self.tracker.log(results, epoch)
                 self.accelerator.print(results)
 
         if self.test_dataloader:
             self.accelerator.print(f'--- Test evaluation ---')
-            results = evaluate(self.model, self.test_dataloader, device=self.accelerator.device)
+            results = evaluate(self.model,
+                               self.test_dataloader,
+                               device=self.accelerator.device,
+                               ext='test',
+                               threshold=self.halt_prob_thres)
+            self.tracker.log(results, self.epochs + 1)
             self.accelerator.print(results)
 
         self.accelerator.print('complete')

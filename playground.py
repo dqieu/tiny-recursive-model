@@ -1,9 +1,13 @@
 import argparse
+from pathlib import Path
 
 import torch
 import torch.nn as nn
 from tiny_recursive_model import TinyRecursiveModel, MLPMixer1D, Trainer
 from tiny_recursive_model.transformer import init_transformer
+
+def get_config_dict(obj):
+    return {k: str(v) for k, v in vars(obj).items()}
 
 if __name__ == '__main__':
     # Parsing arguments
@@ -12,8 +16,10 @@ if __name__ == '__main__':
     parser.add_argument('--excluded-idx', '-e', type=int, nargs='*', default=[], help='Indices to exclude from the dataset')
     parser.add_argument('--batch-size', '-b', type=int, default=16, help='Batch size for training')
     parser.add_argument('--epochs', type=int, default=10, help='Number of training epochs')
-    parser.add_argument('--output-path', '-o', type=str, required=True, help='Path to save the trained model')
+    parser.add_argument('--output-dir', '-o', type=str, required=True, help='Path to save the trained model')
     args = parser.parse_args()
+
+    args_cfg = get_config_dict(args)
 
     # transformer_layer = nn.TransformerEncoderLayer(
     #     d_model = 768,
@@ -40,6 +46,8 @@ if __name__ == '__main__':
     )
     # trm.network.apply(init_transformer)
 
+    trm_cfg = get_config_dict(trm)
+
     from torch.utils.data import Subset
     from tiny_recursive_model.dataio import HDF
 
@@ -51,6 +59,9 @@ if __name__ == '__main__':
     val_ds = Subset(hdf_ds, hdf_ds.split_idx[1])
     test_ds = Subset(hdf_ds, hdf_ds.split_idx[2])
 
+    output_dir = Path(args.output_dir)
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+
     trainer = Trainer(
         trm,
         train_ds,
@@ -58,8 +69,14 @@ if __name__ == '__main__':
         test_ds,
         epochs=args.epochs,
         batch_size=args.batch_size,
-        cpu=False
+        cpu=False,
+        output_dir=output_dir
     )
+
+    trainer_cfg = get_config_dict(trainer)
+
+    trainer.tracker.store_init_configuration(args_cfg | trm_cfg | trainer_cfg)
+
     trainer()
 
-    torch.save(trm.state_dict(), args.output_path)
+    torch.save(trm.state_dict(), output_dir / "trm_model.pt")

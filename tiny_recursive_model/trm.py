@@ -1,5 +1,6 @@
 from __future__ import annotations
 from contextlib import nullcontext
+from pprint import pformat
 
 import torch
 from torch import nn, cat, arange, tensor
@@ -255,4 +256,10 @@ class TinyRecursiveModel(Module):
         losses = (loss, halt_loss)
 
         return total_loss.sum(), losses, *return_package
+
+    def as_dict(self):
+        return vars(self)
+
+    def __str__(self):
+        return f"{self.__class__.__name__}({pformat(vars(self))})"
 

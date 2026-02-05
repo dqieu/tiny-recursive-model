@@ -23,6 +23,6 @@ python -m playground -p /home/kieu/links/scratch/speech-health-ai/tmp/torgo/wavl
                         -e 1685 \
                         -b 16 \
                         --epochs 10 \
-                        -o /exps/"$SLURM_JOB_ID".pt \
+                        -o /exps/"$SLURM_JOB_ID"/ \
 
 kill $LOGGER_PID
