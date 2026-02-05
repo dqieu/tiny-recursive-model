@@ -54,7 +54,7 @@ class Trainer(Module):
         batch_size = 16,
         epochs = 2,
         halt_prob_thres = 0.5,
-        max_recurrent_steps = 12,
+        max_recurrent_steps = 12, # N_sup in paper
         warmup_steps = 2000,
         ema_decay_rate = 0.999,
         switch_ema_every = 10000,           # switch ema https://arxiv.org/abs/2402.09240
@@ -67,11 +67,13 @@ class Trainer(Module):
         self.accelerator  = Accelerator(**accelerate_kwargs, cpu = cpu)
 
         self.batch_size = batch_size
+
         self.epochs = epochs
 
         # data
 
         self.dataset = dataset
+
         self.dataloader = dataloader = DataLoader(self.dataset,
                                                   batch_size = self.batch_size,
                                                   shuffle = True,
@@ -84,7 +86,6 @@ class Trainer(Module):
             self.test_dataloader = DataLoader(test, batch_size = self.batch_size, shuffle = False, collate_fn = padded_batch)
 
         if not exists(optim):
-
             if isinstance(model.network, (Encoder, Decoder)):
                 optim = MuonAdamAtan2(
                     model.network.muon_parameters(),
@@ -183,22 +184,27 @@ class Trainer(Module):
 
             if self.val_dataloader:
                 self.accelerator.print(f'--- Epoch {epoch} validation ---')
+
                 results = evaluate(self.model,
                                    self.val_dataloader,
                                    device=self.accelerator.device,
                                    ext='val',
                                    threshold=self.halt_prob_thres)
+
                 self.tracker.log(results, epoch)
                 self.accelerator.print(results)
 
         if self.test_dataloader:
             self.accelerator.print(f'--- Test evaluation ---')
+
             results = evaluate(self.model,
                                self.test_dataloader,
                                device=self.accelerator.device,
                                ext='test',
                                threshold=self.halt_prob_thres)
+
             self.tracker.log(results, self.epochs + 1)
+
             self.accelerator.print(results)
 
         self.accelerator.print('complete')

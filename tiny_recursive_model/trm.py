@@ -76,7 +76,7 @@ class TinyRecursiveModel(Module):
         )
 
         self.to_halt_pred = nn.Sequential(
-            make_pool_layer(),
+            Reduce('b n d -> b d', 'mean'),
             nn.Linear(dim, 1, bias = False),
             Rearrange('... 1 -> ...')
         )
@@ -256,10 +256,4 @@ class TinyRecursiveModel(Module):
         losses = (loss, halt_loss)
 
         return total_loss.sum(), losses, *return_package
-
-    def as_dict(self):
-        return vars(self)
-
-    def __str__(self):
-        return f"{self.__class__.__name__}({pformat(vars(self))})"
 
