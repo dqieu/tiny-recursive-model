@@ -205,7 +205,7 @@ class TinyRecursiveModel(Module):
                 break
 
         preds = cat(preds)
-        exited_step_indices = tensor(exited_step_indices)
+        exited_step_indices = tensor(exited_step_indices, device=self.device)
 
         exited_batch_indices = cat(exited_batch_indices)
         sort_indices = exited_batch_indices.argsort(dim = -1)
