@@ -127,6 +127,10 @@ class Trainer(Module):
 
         self.model, self.optim, self.dataloader, self.scheduler = self.accelerator.prepare(self.model, self.optim, self.dataloader, self.scheduler)
 
+        # move EMA model to the same device as the prepared model
+        if self.ema_model is not None:
+            self.ema_model.to(self.accelerator.device)
+
     def forward(self):
 
         for epoch in range_from_one(self.epochs):
