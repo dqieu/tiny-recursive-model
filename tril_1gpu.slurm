@@ -22,7 +22,7 @@ LOGGER_PID=$!
 python -m playground -p /home/kieu/links/scratch/speech-health-ai/tmp/torgo/wavlm-basep-last/cache.hdf5 \
                         -e 1685 \
                         -b 16 \
-                        --epochs 1 \
+                        --epochs 10 \
                         -o /exps/"$SLURM_JOB_ID".pt \
 
 kill $LOGGER_PID
