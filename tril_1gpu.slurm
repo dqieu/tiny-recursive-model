@@ -1,8 +1,8 @@
 #!/bin/bash -l
 #SBATCH --job-name=trm
 #SBATCH --chdir=./  # Set the working directory
-#SBATCH --output=slurm_logs/%x_%j.out     # Output file (%x=job-name, %j=job-id)
-#SBATCH --error=slurm_logs/%x_%j.err      # Error file
+#SBATCH --output=slurm_logs/%x_%j_out.txt     # Output file (%x=job-name, %j=job-id)
+#SBATCH --error=slurm_logs/%x_%j_err.txt      # Error file
 #SBATCH --time=1:00:00             # Time limit (hh:mm:ss)
 #SBATCH --cpus-per-task=24          # Number of CPU cores per task
 #SBATCH --nodes=1                   # Number of nodes
@@ -19,7 +19,7 @@ nvidia-smi --query-gpu=timestamp,index,power.draw,memory.used \
            --format=csv,noheader -l 1 > "$SLURM_JOB_ID.gpu.csv" &
 LOGGER_PID=$!
 
-OUTDIR="/exps/${SLURM_JOB_ID}"
+OUTDIR="./exps/${SLURM_JOB_ID}"
 mkdir -p "$OUTDIR"
 
 python -m playground -p /home/kieu/links/scratch/speech-health-ai/tmp/torgo/wavlm-basep-last/cache.hdf5 \
