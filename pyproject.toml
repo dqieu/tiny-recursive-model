@@ -30,6 +30,7 @@ dependencies = [
     "h5py>=3.14.0",
     "notebook>=7.5.3",
     "scikit-learn>=1.6.1",
+    "tensorboard>=2.20.0",
     "torch>=2.4",
     "tqdm>=4.67.2",
     "wandb>=0.24.2",

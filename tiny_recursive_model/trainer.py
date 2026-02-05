@@ -66,7 +66,9 @@ class Trainer(Module):
 
         self.accelerator = Accelerator(**accelerate_kwargs,
                                         cpu = cpu,
-                                        log_with ="wandb",)
+                                        log_with ="tensorboard",
+                                        project_dir= output_dir.parent
+                                       )
 
         self.batch_size = batch_size
 
