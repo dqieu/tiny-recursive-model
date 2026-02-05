@@ -62,9 +62,6 @@ if __name__ == '__main__':
 
     trm.network.apply(init_transformer)
 
-    # Enable detailed refinement debugging (uncomment to see detailed norms)
-    # trm._debug_refinement = True
-
     trm_cfg = get_config_dict(trm)
 
     hdf_ds = HDF(args.data_path, excluded_idx=args.excluded_idx,)

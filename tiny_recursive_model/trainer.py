@@ -155,23 +155,9 @@ class Trainer(Module):
 
                     loss, (main_loss, halt_loss), outputs, latents, pred, halt = self.model(dataset_input, outputs, latents, labels = dataset_output)
 
-                    # Diagnostics: monitor for explosion
-                    outputs_norm = outputs.norm().item()
-                    latents_norm = latents.norm().item()
-                    has_nan = torch.isnan(loss).any().item() or torch.isinf(loss).any().item()
-
-                    self.accelerator.print(f'[Epoch {epoch} Batch {batch}/{num_batches} ({recurrent_step} / {self.max_recurrent_steps})] loss: {main_loss.mean().item():.3f} | halt loss: {halt_loss.mean().item():.3f} | outputs_norm: {outputs_norm:.2f} | latents_norm: {latents_norm:.2f}{" [NaN/Inf!]" if has_nan else ""}')
+                    self.accelerator.print(f'[Epoch {epoch} Batch {batch}/{num_batches} ({recurrent_step} / {self.max_recurrent_steps})] loss: {main_loss.mean().item():.3f} | halt loss: {halt_loss.mean().item():.3f}')
 
                     self.accelerator.backward(loss)
-
-                    # Diagnostics: compute gradient norm
-                    total_norm = 0.0
-                    for p in self.model.parameters():
-                        if p.grad is not None:
-                            total_norm += p.grad.data.norm(2).item() ** 2
-                    total_norm = total_norm ** 0.5
-
-                    self.accelerator.print(f'  grad_norm: {total_norm:.2f}')
 
                     self.optim.step()
                     self.optim.zero_grad()
