@@ -54,6 +54,8 @@ if __name__ == '__main__':
     trainer = Trainer(
         trm,
         train_ds,
+        val_ds,
+        test_ds,
         epochs=args.epochs,
         batch_size=args.batch_size,
         cpu=False
