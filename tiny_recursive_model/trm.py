@@ -29,40 +29,51 @@ def range_from_one(n):
 
 # classes
 
+class SelectFirstToken(Module):
+    """Extracts the first token from a sequence (for CLS token)"""
+    def forward(self, x):
+        return x[:, 0]
+
 class TinyRecursiveModel(Module):
     def __init__(
         self,
         *,
         dim,
-        num_tokens,
         network: Module,
         num_refinement_blocks = 3,   # T in paper
         num_latent_refinements = 6,  # n in paper - 1 output refinement per N latent refinements
         halt_loss_weight = 1.,
-        num_register_tokens = 0
+        use_cls_token = False
     ):
         super().__init__()
         assert num_refinement_blocks > 1
+        self.use_cls_token = use_cls_token
 
-        self.input_embed = nn.Embedding(num_tokens, dim)
         self.output_init_embed = nn.Parameter(torch.randn(dim) * 1e-2)
         self.latent_init_embed = nn.Parameter(torch.randn(dim) * 1e-2)
+
+        # CLS token for classification
+        if use_cls_token:
+            self.cls_token = nn.Parameter(torch.randn(dim) * 1e-2)
 
         self.network = network
 
         self.num_latent_refinements = num_latent_refinements
         self.num_refinement_blocks = num_refinement_blocks
 
-        # register tokens for the self attend version
-
-        self.register_tokens = nn.Parameter(torch.randn(num_register_tokens, dim) * 1e-2)
-
         # prediction heads
 
-        self.to_pred = nn.Linear(dim, num_tokens, bias = False)
+        # CLS token uses first position, otherwise mean pooling
+        pool_layer = SelectFirstToken() if use_cls_token else Reduce('b n d -> b d', 'mean')
+
+        self.to_pred = nn.Sequential(
+            pool_layer,
+            nn.Linear(dim, 1, bias = False),
+            Rearrange('... 1 -> ...')
+        )
 
         self.to_halt_pred = nn.Sequential(
-            Reduce('b n d -> b d', 'mean'),
+            pool_layer,
             nn.Linear(dim, 1, bias = False),
             Rearrange('... 1 -> ...')
         )
@@ -77,27 +88,21 @@ class TinyRecursiveModel(Module):
     def device(self):
         return next(self.parameters()).device
 
+    def prepend_cls_token(self, seq):
+        """Prepend CLS token to sequence if use_cls_token is enabled"""
+        if not self.use_cls_token:
+            return seq
+
+        batch = seq.shape[0]
+        cls_tokens = repeat(self.cls_token, 'd -> b 1 d', b = batch)
+        return cat([cls_tokens, seq], dim = 1)
+
     def get_initial(self):
         outputs = self.output_init_embed
         latents = self.latent_init_embed
 
         return outputs, latents
 
-    def embed_inputs_with_registers(
-        self,
-        seq
-    ):
-        batch = seq.shape[0]
-
-        inputs = self.input_embed(seq)
-
-        # maybe registers
-
-        registers = repeat(self.register_tokens, 'n d -> b n d', b = batch)
-
-        inputs, packed_shape = pack([registers, inputs], 'b * d')
-
-        return inputs, packed_shape
 
     def refine_latent_then_output_once(
         self,
@@ -145,8 +150,8 @@ class TinyRecursiveModel(Module):
     ):
         batch = seq.shape[0]
 
-        inputs, packed_shape = self.embed_inputs_with_registers(seq)
-
+        # prepend CLS token if enabled
+        inputs = self.prepend_cls_token(seq)
         # initial outputs and latents
 
         outputs, latents = self.get_initial()
@@ -171,13 +176,9 @@ class TinyRecursiveModel(Module):
             if not should_halt.any():
                 continue
 
-            # maybe remove registers
-
-            registers, outputs_for_pred = unpack(outputs, packed_shape, 'b * d')
-
             # append to exited predictions
 
-            pred = self.to_pred(outputs_for_pred[should_halt])
+            pred = self.to_pred(outputs[should_halt])
             preds.append(pred)
 
             # append the step at which early halted
@@ -201,7 +202,7 @@ class TinyRecursiveModel(Module):
             if is_empty(outputs):
                 break
 
-        preds = cat(preds).argmax(dim = -1)
+        preds = cat(preds)
         exited_step_indices = tensor(exited_step_indices)
 
         exited_batch_indices = cat(exited_batch_indices)
@@ -216,14 +217,12 @@ class TinyRecursiveModel(Module):
         latents,
         labels = None
     ):
+        # prepend CLS token if enabled
+        seq = self.prepend_cls_token(seq)
 
-        inputs, packed_shape = self.embed_inputs_with_registers(seq)
+        outputs, latents = self.deep_refinement(seq, outputs, latents)
 
-        outputs, latents = self.deep_refinement(inputs, outputs, latents)
-
-        registers, outputs_for_pred = unpack(outputs, packed_shape, 'b * d')
-
-        pred = self.to_pred(outputs_for_pred)
+        pred = self.to_pred(outputs)
 
         halt_logits = self.to_halt_pred(outputs)
 
@@ -238,10 +237,9 @@ class TinyRecursiveModel(Module):
 
         # calculate loss if labels passed in
 
-        loss = F.cross_entropy(rearrange(pred, 'b n l -> b l n'), labels, reduction = 'none')
-        loss = reduce(loss, 'b ... -> b', 'mean')
+        loss = F.binary_cross_entropy_with_logits(pred, labels.float(), reduction = 'none')
 
-        is_all_correct = (pred.argmax(dim = -1) == labels).all(dim = -1)
+        is_all_correct = pred == labels
 
         halt_loss = F.binary_cross_entropy_with_logits(halt_logits, is_all_correct.float(), reduction = 'none')
 
@@ -254,4 +252,5 @@ class TinyRecursiveModel(Module):
 
         losses = (loss, halt_loss)
 
-        return (total_loss.sum(), losses, *return_package)
+        return total_loss.sum(), losses, *return_package
+

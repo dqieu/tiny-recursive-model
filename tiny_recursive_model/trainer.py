@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import torch
+from tiny_recursive_model.eval import evaluate
 from torch.nn import Module
 from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR
@@ -10,10 +11,11 @@ from einops import pack, unpack
 
 from accelerate import Accelerator
 
-# ema - apparently greatly helped with results
+# ema - apparently greatly help;.ed with results
 
 from ema_pytorch import EMA
 
+from tiny_recursive_model.dataio import padded_batch
 from tiny_recursive_model.trm import TinyRecursiveModel
 
 from adam_atan2_pytorch import MuonAdamAtan2
@@ -38,6 +40,8 @@ class Trainer(Module):
         self,
         model: TinyRecursiveModel | Module,
         dataset: Dataset,
+        val: Dataset | None = None,
+        test: Dataset | None = None,
         optim_klass = AdamW,
         optim: Optimizer | None = None,
         learning_rate = 1e-4,
@@ -63,9 +67,16 @@ class Trainer(Module):
         # data
 
         self.dataset = dataset
-        self.dataloader = dataloader = DataLoader(self.dataset, batch_size = self.batch_size, shuffle = True)
+        self.dataloader = dataloader = DataLoader(self.dataset,
+                                                  batch_size = self.batch_size,
+                                                  shuffle = True,
+                                                  collate_fn = padded_batch)
 
-        # optim
+        if val:
+            self.val_dataloader = DataLoader(val, batch_size = self.batch_size, shuffle = False, collate_fn = padded_batch)
+
+        if test:
+            self.test_dataloader = DataLoader(test, batch_size = self.batch_size, shuffle = False, collate_fn = padded_batch)
 
         if not exists(optim):
 
@@ -120,7 +131,9 @@ class Trainer(Module):
 
         for epoch in range_from_one(self.epochs):
 
-            for dataset_input, dataset_output in self.dataloader:
+            for i, (dataset_input, dataset_output) in enumerate(self.dataloader):
+
+                num_batches = len(self.dataloader)
 
                 outputs, latents = self.model.get_initial()
 
@@ -128,7 +141,7 @@ class Trainer(Module):
 
                     loss, (main_loss, halt_loss), outputs, latents, pred, halt = self.model(dataset_input, outputs, latents, labels = dataset_output)
 
-                    self.accelerator.print(f'[{epoch} ({recurrent_step} / {self.max_recurrent_steps})] loss: {main_loss.mean().item():.3f} | halt loss: {halt_loss.mean().item():.3f}')
+                    self.accelerator.print(f'[Epoch {epoch} Batch {i}/{num_batches} ({recurrent_step} / {self.max_recurrent_steps})] loss: {main_loss.mean().item():.3f} | halt loss: {halt_loss.mean().item():.3f}')
 
                     self.accelerator.backward(loss)
 
@@ -154,6 +167,16 @@ class Trainer(Module):
 
                     if is_empty(outputs):
                         break
+
+            if self.val_dataloader:
+                self.accelerator.print(f'--- Epoch {epoch} validation ---')
+                results = evaluate(self.model, self.val_dataloader, device=self.accelerator.device)
+                self.accelerator.print(results)
+
+        if self.test_dataloader:
+            self.accelerator.print(f'--- Test evaluation ---')
+            results = evaluate(self.model, self.test_dataloader, device=self.accelerator.device)
+            self.accelerator.print(results)
 
         self.accelerator.print('complete')
 

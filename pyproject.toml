@@ -27,8 +27,13 @@ dependencies = [
     "adam-atan2-pytorch>=0.2.2",
     "einops>=0.8.1",
     "ema-pytorch",
+    "h5py>=3.14.0",
+    "notebook>=7.5.3",
     "torch>=2.4",
     "x-transformers>=2.9.0",
+    "scikit-learn",
+    "tqdm",
+    "h5py",
 ]
 
 [project.urls]
