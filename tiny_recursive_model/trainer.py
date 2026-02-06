@@ -145,6 +145,12 @@ class Trainer(Module):
 
     def forward(self):
 
+        results = evaluate(self.model,
+                           self.val_dataloader,
+                           device=self.accelerator.device,
+                           ext='val',
+                           threshold=self.halt_prob_thres)
+
         for epoch in range_from_one(self.epochs):
 
             for batch, (dataset_input, dataset_output) in enumerate(self.dataloader):

@@ -79,19 +79,21 @@ def evaluate(model, dataloader, device, threshold: float = 0.5, ext: str = ""):
     y_true_chunks = []
     y_prob_chunks = []
 
+    i = 0
     for batch in tqdm(dataloader, total=len(dataloader), desc="Evaluating"):
         inputs, labels = batch
         inputs = inputs.to(device, non_blocking=True)
         labels = labels.to(device, non_blocking=True)
 
-        # Expect: y_prob in [0,1], shape (B,) or (B,1)
+        # Expect: y_prob in [0,1], shape (B,)
         y_prob, _ = model.predict(inputs)
-        y_prob = y_prob.view(-1)
-        y_prob = y_prob.softmax(0)
+        y_prob = y_prob.sigmoid()
 
-        y_true_chunks.append(labels.view(-1))
+        y_true_chunks.append(labels)
         y_prob_chunks.append(y_prob)
-
+        i += 1
+        if i == 2:
+            break
     y_true = torch.cat(y_true_chunks, dim=0)
     y_prob = torch.cat(y_prob_chunks, dim=0)
 

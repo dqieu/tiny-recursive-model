@@ -242,7 +242,7 @@ class TinyRecursiveModel(Module):
 
         loss = F.binary_cross_entropy_with_logits(pred, labels.float(), reduction = 'none')
 
-        is_all_correct = pred == labels
+        is_all_correct = (pred.sigmoid() > .5).long() == labels
 
         halt_loss = F.binary_cross_entropy_with_logits(halt_logits, is_all_correct.float(), reduction = 'none')
 
