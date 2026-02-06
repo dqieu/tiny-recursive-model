@@ -87,7 +87,7 @@ def evaluate(model, dataloader, device, threshold: float = 0.5, ext: str = ""):
         # Expect: y_prob in [0,1], shape (B,) or (B,1)
         y_prob, _ = model.predict(inputs)
         y_prob = y_prob.view(-1)
-        y_prob = y_prob.sigmoid()
+        y_prob = y_prob.softmax(0)
 
         y_true_chunks.append(labels.view(-1))
         y_prob_chunks.append(y_prob)
