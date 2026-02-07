@@ -227,7 +227,7 @@ class TinyRecursiveModel(Module):
 
         pred = self.to_pred(outputs)
 
-        halt_logits = self.to_halt_pred(outputs)
+        halt_logits = self.to_halt_pred(outputs.detach())
 
         halt_prob = halt_logits.sigmoid()
 

@@ -56,7 +56,7 @@ if __name__ == '__main__':
         #     depth=1,
         #     seq_len=256,
         # ),
-        use_cls_token=False,
+        use_cls_token=True,
         num_refinement_blocks=3,
         num_latent_refinements=3
     )
@@ -65,7 +65,7 @@ if __name__ == '__main__':
 
     trm_cfg = get_config_dict(trm)
 
-    hdf_ds = HDF(args.data_path, excluded_idx=args.excluded_idx, length = 511)
+    hdf_ds = HDF(args.data_path, excluded_idx=args.excluded_idx, length = 255)
 
     train_ds = Subset(hdf_ds, hdf_ds.split_idx[0])
 
@@ -96,3 +96,7 @@ if __name__ == '__main__':
     trainer()
 
     torch.save(trm.state_dict(), output_dir / "trm_model.pt")
+
+    # trm.state_dict = torch.load("trm_model.pt", map_location="mps")
+    #
+    # trainer.evaluate("test")

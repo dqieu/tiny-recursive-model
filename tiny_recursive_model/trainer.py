@@ -145,12 +145,6 @@ class Trainer(Module):
 
     def forward(self):
 
-        results = evaluate(self.model,
-                           self.val_dataloader,
-                           device=self.accelerator.device,
-                           ext='val',
-                           threshold=self.halt_prob_thres)
-
         for epoch in range_from_one(self.epochs):
 
             for batch, (dataset_input, dataset_output) in enumerate(self.dataloader):
@@ -193,11 +187,7 @@ class Trainer(Module):
             if self.val_dataloader:
                 self.accelerator.print(f'--- Epoch {epoch} validation ---')
 
-                results = evaluate(self.model,
-                                   self.val_dataloader,
-                                   device=self.accelerator.device,
-                                   ext='val',
-                                   threshold=self.halt_prob_thres)
+                results = self.evaluate("val")
 
                 self.accelerator.log(results, epoch)
                 self.accelerator.print(results)
@@ -205,11 +195,7 @@ class Trainer(Module):
         if self.test_dataloader:
             self.accelerator.print(f'--- Test evaluation ---')
 
-            results = evaluate(self.model,
-                               self.test_dataloader,
-                               device=self.accelerator.device,
-                               ext='test',
-                               threshold=self.halt_prob_thres)
+            results = self.evaluate()
 
             self.accelerator.log(results, self.epochs + 1)
 
@@ -219,3 +205,20 @@ class Trainer(Module):
 
         if self.accelerator.is_main_process:
             self.ema_model.copy_params_from_ema_to_model()
+
+    def evaluate(self, ext = 'test'):
+        dataloader = getattr(self, f'{ext}_dataloader', None)
+
+        if dataloader is None:
+            raise ValueError(f"No dataloader found for ext '{ext}'")
+
+        results = evaluate(self.model,
+                           dataloader,
+                           device=self.accelerator.device,
+                           ext=ext,
+                           threshold=self.halt_prob_thres)
+
+        self.accelerator.print(results)
+
+        return results
+

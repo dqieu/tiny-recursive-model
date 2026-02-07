@@ -79,7 +79,7 @@ def evaluate(model, dataloader, device, threshold: float = 0.5, ext: str = ""):
     y_true_chunks = []
     y_prob_chunks = []
 
-    i = 0
+
     for batch in tqdm(dataloader, total=len(dataloader), desc="Evaluating"):
         inputs, labels = batch
         inputs = inputs.to(device, non_blocking=True)
@@ -91,9 +91,7 @@ def evaluate(model, dataloader, device, threshold: float = 0.5, ext: str = ""):
 
         y_true_chunks.append(labels)
         y_prob_chunks.append(y_prob)
-        i += 1
-        if i == 2:
-            break
+
     y_true = torch.cat(y_true_chunks, dim=0)
     y_prob = torch.cat(y_prob_chunks, dim=0)
 
