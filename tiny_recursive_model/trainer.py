@@ -159,11 +159,6 @@ class Trainer(Module):
 
                     self.accelerator.print(f'[Epoch {epoch} Batch {batch}/{num_batches} ({recurrent_step} / {self.max_recurrent_steps})] loss: {main_loss.mean().item():.3f} | halt loss: {halt_loss.mean().item():.3f}')
 
-                    self.accelerator.log({
-                        "train_loss": main_loss.mean().item(),
-                        "train_halt_loss": halt_loss.mean().item(),
-                    })
-
                     self.accelerator.backward(loss)
 
                     self.optim.step()
