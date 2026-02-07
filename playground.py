@@ -58,7 +58,7 @@ if __name__ == '__main__':
         # ),
         use_cls_token=True,
         num_refinement_blocks=3,
-        num_latent_refinements=3
+        num_latent_refinements=6
     )
 
     trm.network.apply(init_transformer)
