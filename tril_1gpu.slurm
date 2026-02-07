@@ -25,7 +25,7 @@ mkdir -p "$OUTDIR"
 python -m playground -p /home/kieu/links/scratch/speech-health-ai/tmp/torgo/wavlm-basep-last/cache.hdf5 \
                         -e 1685 \
                         -b 16 \
-                        --epochs 10 \
+                        --epochs 30 \
                         -o $OUTDIR
 
 kill $LOGGER_PID

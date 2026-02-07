@@ -66,7 +66,7 @@ class Trainer(Module):
 
         self.accelerator = Accelerator(**accelerate_kwargs,
                                         cpu = cpu,
-                                        log_with ="tensorboard",
+                                        log_with = "tensorboard",
                                         project_dir= output_dir.parent
                                        )
 
@@ -158,6 +158,11 @@ class Trainer(Module):
                     loss, (main_loss, halt_loss), outputs, latents, pred, halt = self.model(dataset_input, outputs, latents, labels = dataset_output)
 
                     self.accelerator.print(f'[Epoch {epoch} Batch {batch}/{num_batches} ({recurrent_step} / {self.max_recurrent_steps})] loss: {main_loss.mean().item():.3f} | halt loss: {halt_loss.mean().item():.3f}')
+
+                    self.accelerator.log({
+                        "train_loss": main_loss.mean().item(),
+                        "train_halt_loss": halt_loss.mean().item(),
+                    })
 
                     self.accelerator.backward(loss)
 
