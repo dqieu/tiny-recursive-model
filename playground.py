@@ -93,11 +93,7 @@ if __name__ == '__main__':
 
     trainer.accelerator.init_trackers("trm",
                                       config=args_cfg | trm_cfg | trainer_cfg,
-                                      init_kwargs={
-                                          "tensorboard": {
-                                              "run_name": output_dir.stem,
-                                          }
-                                      })
+                                      )
 
     trainer()
 
