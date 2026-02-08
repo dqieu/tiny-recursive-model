@@ -65,7 +65,7 @@ if __name__ == '__main__':
 
     trm_cfg = get_config_dict(trm)
 
-    hdf_ds = HDF(args.data_path, excluded_idx=args.excluded_idx, length = 255)
+    hdf_ds = HDF(args.data_path, excluded_idx=args.excluded_idx, length = 511)
 
     train_ds = Subset(hdf_ds, hdf_ds.split_idx[0])
 

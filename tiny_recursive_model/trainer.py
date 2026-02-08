@@ -147,6 +147,10 @@ class Trainer(Module):
 
         for epoch in range_from_one(self.epochs):
 
+            # The loss @ last recurrent step
+            batch_losses = []
+            batch_halt_losses = []
+
             for batch, (dataset_input, dataset_output) in enumerate(self.dataloader):
 
                 num_batches = len(self.dataloader)
@@ -181,8 +185,18 @@ class Trainer(Module):
                     dataset_input = dataset_input[~halt_mask]
                     dataset_output = dataset_output[~halt_mask]
 
-                    if is_empty(outputs):
+                    if is_empty(outputs) or recurrent_step == self.max_recurrent_steps:
+                        batch_losses.append(main_loss.detach().mean())
+                        batch_halt_losses.append(halt_loss.detach().mean())
                         break
+
+                # Once per batch
+                self.accelerator.log({
+                    "train_loss": torch.tensor(batch_losses).mean(),
+                    "train_halt_loss": torch.tensor(batch_halt_losses).mean()
+                }, step = (epoch - 1) * num_batches + batch)
+
+                batch_losses, batch_halt_losses = [], []
 
             if self.val_dataloader:
                 self.accelerator.print(f'--- Epoch {epoch} validation ---')
