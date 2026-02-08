@@ -227,7 +227,13 @@ class TinyRecursiveModel(Module):
 
         pred = self.to_pred(outputs)
 
-        halt_logits = self.to_halt_pred(outputs.detach())
+        if self.use_cls_token:
+            # halt loss goes to all but cls tok
+            cls, toks = outputs[:, :1], outputs[:, 1:]
+            cls = cls.detach()
+            outputs = torch.cat([cls, toks], dim = 1)
+
+        halt_logits = self.to_halt_pred(outputs)
 
         halt_prob = halt_logits.sigmoid()
 

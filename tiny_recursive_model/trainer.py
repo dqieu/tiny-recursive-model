@@ -49,7 +49,7 @@ class Trainer(Module):
         optim_klass = AdamW,
         optim: Optimizer | None = None,
         learning_rate = 1e-4,
-        muon_learning_rate = 1e-3,
+        muon_learning_rate = 1e-4,
         weight_decay = 1.,
         batch_size = 16,
         epochs = 2,

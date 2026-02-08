@@ -8,6 +8,7 @@ from tiny_recursive_model.transformer import init_transformer
 from torch.utils.data import Subset
 from tiny_recursive_model.dataio import HDF
 
+LENGTH = 511
 
 def get_config_dict(obj):
     return {k: str(v) for k, v in vars(obj).items()}
@@ -65,7 +66,7 @@ if __name__ == '__main__':
 
     trm_cfg = get_config_dict(trm)
 
-    hdf_ds = HDF(args.data_path, excluded_idx=args.excluded_idx, length = 511)
+    hdf_ds = HDF(args.data_path, excluded_idx=args.excluded_idx, length = LENGTH)
 
     train_ds = Subset(hdf_ds, hdf_ds.split_idx[0])
 
