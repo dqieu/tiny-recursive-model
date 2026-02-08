@@ -3,7 +3,7 @@
 #SBATCH --chdir=./  # Set the working directory
 #SBATCH --output=slurm_logs/%x_%j_out.txt     # Output file (%x=job-name, %j=job-id)
 #SBATCH --error=slurm_logs/%x_%j_err.txt      # Error file
-#SBATCH --time=1:00:00             # Time limit (hh:mm:ss)
+#SBATCH --time=3tra:00:00             # Time limit (hh:mm:ss)
 #SBATCH --cpus-per-task=24          # Number of CPU cores per task
 #SBATCH --nodes=1                   # Number of nodes
 #SBATCH --ntasks=1                  # Number of tasks
@@ -25,7 +25,7 @@ mkdir -p "$OUTDIR"
 python -m playground -p /home/kieu/links/scratch/speech-health-ai/tmp/torgo/wavlm-basep-last/cache.hdf5 \
                         -e 1685 \
                         -b 16 \
-                        --epochs 50 \
+                        --epochs 150 \
                         -o $OUTDIR
 
 kill $LOGGER_PID
