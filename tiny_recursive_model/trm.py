@@ -44,7 +44,8 @@ class TinyRecursiveModel(Module):
         num_refinement_blocks = 3,   # T in paper
         num_latent_refinements = 6,  # n in paper - 1 output refinement per N latent refinements
         halt_loss_weight = 1.,
-        use_cls_token = False
+        use_cls_token = False,
+        pos_weight = 1
     ):
         super().__init__()
         assert num_refinement_blocks > 1
@@ -84,8 +85,9 @@ class TinyRecursiveModel(Module):
         self.halt_loss_weight = halt_loss_weight
 
         # init
-
         nn.init.zeros_(self.to_halt_pred[1].weight)
+
+        self.pos_weight = pos_weight
 
     @property
     def device(self):
@@ -245,8 +247,9 @@ class TinyRecursiveModel(Module):
             return return_package
 
         # calculate loss if labels passed in
+        pos_weight = repeat(torch.tensor(self.pos_weight), '-> b', b = labels.shape[0]).to(self.device)
 
-        loss = F.binary_cross_entropy_with_logits(pred, labels.float(), reduction = 'none')
+        loss = F.binary_cross_entropy_with_logits(pred, labels.float(), reduction = 'none', pos_weight=pos_weight)
 
         is_all_correct = (pred.sigmoid() > .5).long() == labels
 
