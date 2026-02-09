@@ -87,7 +87,7 @@ class TinyRecursiveModel(Module):
         # init
         nn.init.zeros_(self.to_halt_pred[1].weight)
 
-        self.pos_weight = pos_weight
+        self.pos_weight = torch.tensor(pos_weight)
 
     @property
     def device(self):
@@ -247,9 +247,9 @@ class TinyRecursiveModel(Module):
             return return_package
 
         # calculate loss if labels passed in
-        pos_weight = repeat(torch.tensor(self.pos_weight), '-> b', b = labels.shape[0]).to(self.device)
 
-        loss = F.binary_cross_entropy_with_logits(pred, labels.float(), reduction = 'none', pos_weight=pos_weight)
+        # change if multiclass
+        loss = F.binary_cross_entropy_with_logits(pred, labels.float(), reduction = 'none', pos_weight=self.pos_weight)
 
         is_all_correct = (pred.sigmoid() > .5).long() == labels
 
