@@ -57,7 +57,6 @@ if __name__ == '__main__':
         #     depth=1,
         #     seq_len=256,
         # ),
-        use_cls_token=True,
         num_refinement_blocks=3,
         num_latent_refinements=6,
         pos_weight = 3

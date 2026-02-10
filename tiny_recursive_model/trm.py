@@ -30,10 +30,14 @@ def range_from_one(n):
 
 # classes
 
-class SelectFirstToken(Module):
-    """Extracts the first token from a sequence (for CLS token)"""
+class SelectCLSToken(Module):
+    """Extracts CLS tokens and then mean pool them"""
+    def __init__(self, num_tokens = 1):
+        super().__init__()
+        self.num_tokens = num_tokens
+
     def forward(self, x):
-        return x[:, 0]
+        return x[:, :self.num_tokens].mean(dim = 1)
 
 class TinyRecursiveModel(Module):
     def __init__(
@@ -44,19 +48,19 @@ class TinyRecursiveModel(Module):
         num_refinement_blocks = 3,   # T in paper
         num_latent_refinements = 6,  # n in paper - 1 output refinement per N latent refinements
         halt_loss_weight = 1.,
-        use_cls_token = False,
         pos_weight = 1
     ):
         super().__init__()
         assert num_refinement_blocks > 1
-        self.use_cls_token = use_cls_token
 
         self.output_init_embed = nn.Parameter(torch.randn(dim) * 1e-2)
         self.latent_init_embed = nn.Parameter(torch.randn(dim) * 1e-2)
 
         # CLS token for classification
-        if use_cls_token:
-            self.cls_token = nn.Parameter(torch.randn(dim) * 1e-2)
+        self.num_cls_tokens = num_refinement_blocks + 1
+        cls_token_weight = torch.randn((self.num_cls_tokens, dim))
+        self.cls_token = nn.Parameter(cls_token_weight * 1e-2)
+
 
         self.network = network
 
@@ -65,13 +69,8 @@ class TinyRecursiveModel(Module):
 
         # prediction heads
 
-        # CLS token uses first position, otherwise mean pooling
-        # Create separate instances for each head to avoid module sharing issues
-        def make_pool_layer():
-            return SelectFirstToken() if use_cls_token else Reduce('b n d -> b d', 'mean')
-
         self.to_pred = nn.Sequential(
-            make_pool_layer(),
+            SelectCLSToken(self.num_refinement_blocks),
             nn.Linear(dim, 1, bias = False),
             Rearrange('... 1 -> ...')
         )
@@ -93,13 +92,13 @@ class TinyRecursiveModel(Module):
     def device(self):
         return next(self.parameters()).device
 
-    def prepend_cls_token(self, seq):
+    def prepend_cls_token(self, seq, i = 0):
         """Prepend CLS token to sequence if use_cls_token is enabled"""
         if not self.use_cls_token:
             return seq
 
         batch = seq.shape[0]
-        cls_tokens = repeat(self.cls_token, 'd -> b 1 d', b = batch)
+        cls_tokens = repeat(self.cls_token[i], 'd -> b 1 d', b = batch)
         return cat([cls_tokens, seq], dim = 1)
 
     def get_initial(self):
@@ -107,7 +106,6 @@ class TinyRecursiveModel(Module):
         latents = self.latent_init_embed
 
         return outputs, latents
-
 
     def refine_latent_then_output_once(
         self,
@@ -130,12 +128,16 @@ class TinyRecursiveModel(Module):
     def deep_refinement(
         self,
         inputs,    # (b n d)
-        outputs,   # (b n d)
-        latents,   # (b n d)
+        outputs,   # (d)
+        latents,   # (d)
     ):
+        batch = inputs.shape[0]
+
+        clss = repeat(self.cls_token, 'l d -> b l d', b = batch)
+
+        inputs, _ = pack([clss[:, 0], inputs], 'b * d')
 
         for step in range_from_one(self.num_refinement_blocks):
-
             # only last round of refinement receives gradients
 
             is_last = step == self.num_refinement_blocks
@@ -143,6 +145,17 @@ class TinyRecursiveModel(Module):
 
             with context():
                 outputs, latents = self.refine_latent_then_output_once(inputs, outputs, latents)
+
+                inputs, _ = pack([clss[:, step], inputs], 'b * d')
+
+                init_output, init_latent = self.get_initial()
+
+                init_output = repeat(init_output, 'd -> b 1 d', b = batch)
+                init_latent = repeat(init_latent, 'd -> b 1 d', b = batch)
+
+                outputs, _ = pack([init_output, outputs], 'b * d')
+                latents, _ = pack([init_latent, latents], 'b * d')
+
 
         return outputs, latents
 
@@ -222,18 +235,15 @@ class TinyRecursiveModel(Module):
         latents,
         labels = None
     ):
-        # prepend CLS token if enabled
-        seq = self.prepend_cls_token(seq)
 
         outputs, latents = self.deep_refinement(seq, outputs, latents)
 
         pred = self.to_pred(outputs)
 
-        if self.use_cls_token:
-            # halt loss goes to all but cls tok
-            cls, toks = outputs[:, :1], outputs[:, 1:]
-            cls = cls.detach()
-            outputs = torch.cat([cls, toks], dim = 1)
+        # halt loss goes to all but cls tok
+        cls, toks = outputs[:, :self.num_cls_tokens], outputs[:, self.num_cls_tokens:]
+        cls = cls.detach()
+        outputs = torch.cat([cls, toks], dim = 1)
 
         halt_logits = self.to_halt_pred(outputs)
 
