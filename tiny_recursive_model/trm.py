@@ -30,14 +30,19 @@ def range_from_one(n):
 
 # classes
 
-class SelectCLSToken(Module):
-    """Extracts CLS tokens and then mean pool them"""
+class SelectFirstTokens(Module):
+    """Extracts the first tokens from a sequence (for CLS tokens)"""
     def __init__(self, num_tokens = 1):
         super().__init__()
         self.num_tokens = num_tokens
 
     def forward(self, x):
-        return x[:, :self.num_tokens].mean(dim = 1)
+        return x[:, :self.num_tokens]
+
+class Mean(Module):
+    """Extracts the mean of a sequence (for non-CLS token version)"""
+    def forward(self, x):
+        return x.mean(dim = 1)
 
 class TinyRecursiveModel(Module):
     def __init__(
@@ -48,19 +53,18 @@ class TinyRecursiveModel(Module):
         num_refinement_blocks = 3,   # T in paper
         num_latent_refinements = 6,  # n in paper - 1 output refinement per N latent refinements
         halt_loss_weight = 1.,
+        num_cls_tokens = 1,
         pos_weight = 1
     ):
         super().__init__()
         assert num_refinement_blocks > 1
+        assert num_cls_tokens > 0
 
         self.output_init_embed = nn.Parameter(torch.randn(dim) * 1e-2)
         self.latent_init_embed = nn.Parameter(torch.randn(dim) * 1e-2)
 
-        # CLS token for classification
-        self.num_cls_tokens = num_refinement_blocks + 1
-        cls_token_weight = torch.randn((self.num_cls_tokens, dim))
-        self.cls_token = nn.Parameter(cls_token_weight * 1e-2)
-
+        self.num_cls_tokens = num_cls_tokens
+        self.cls_token = nn.Parameter(torch.randn((num_cls_tokens, dim)) * 1e-2)
 
         self.network = network
 
@@ -70,8 +74,9 @@ class TinyRecursiveModel(Module):
         # prediction heads
 
         self.to_pred = nn.Sequential(
-            SelectCLSToken(self.num_refinement_blocks),
+            SelectFirstTokens(),
             nn.Linear(dim, 1, bias = False),
+            Mean(),
             Rearrange('... 1 -> ...')
         )
 
@@ -92,13 +97,11 @@ class TinyRecursiveModel(Module):
     def device(self):
         return next(self.parameters()).device
 
-    def prepend_cls_token(self, seq, i = 0):
-        """Prepend CLS token to sequence if use_cls_token is enabled"""
-        if not self.use_cls_token:
-            return seq
+    def prepend_cls_token(self, seq):
+        """Prepend CLS tokens to sequence"""
 
         batch = seq.shape[0]
-        cls_tokens = repeat(self.cls_token[i], 'd -> b 1 d', b = batch)
+        cls_tokens = repeat(self.cls_token, 'l d -> b l d', b = batch)
         return cat([cls_tokens, seq], dim = 1)
 
     def get_initial(self):
@@ -128,14 +131,9 @@ class TinyRecursiveModel(Module):
     def deep_refinement(
         self,
         inputs,    # (b n d)
-        outputs,   # (d)
-        latents,   # (d)
+        outputs,   # (b n d)
+        latents,   # (b n d)
     ):
-        batch = inputs.shape[0]
-
-        clss = repeat(self.cls_token, 'l d -> b l d', b = batch)
-
-        inputs, _ = pack([clss[:, 0], inputs], 'b * d')
 
         for step in range_from_one(self.num_refinement_blocks):
             # only last round of refinement receives gradients
@@ -145,17 +143,6 @@ class TinyRecursiveModel(Module):
 
             with context():
                 outputs, latents = self.refine_latent_then_output_once(inputs, outputs, latents)
-
-                inputs, _ = pack([clss[:, step], inputs], 'b * d')
-
-                init_output, init_latent = self.get_initial()
-
-                init_output = repeat(init_output, 'd -> b 1 d', b = batch)
-                init_latent = repeat(init_latent, 'd -> b 1 d', b = batch)
-
-                outputs, _ = pack([init_output, outputs], 'b * d')
-                latents, _ = pack([init_latent, latents], 'b * d')
-
 
         return outputs, latents
 
@@ -170,8 +157,8 @@ class TinyRecursiveModel(Module):
 
         # prepend CLS token if enabled
         inputs = self.prepend_cls_token(seq)
-        # initial outputs and latents
 
+        # initial outputs and latents
         outputs, latents = self.get_initial()
 
         # active batch indices, the step it exited at, and the final output predictions
@@ -235,6 +222,8 @@ class TinyRecursiveModel(Module):
         latents,
         labels = None
     ):
+        # prepend CLS token if enabled
+        seq = self.prepend_cls_token(seq)
 
         outputs, latents = self.deep_refinement(seq, outputs, latents)
 

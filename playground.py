@@ -41,6 +41,7 @@ if __name__ == '__main__':
         batch_first=True,
         norm_first=True,
     )
+
     network = nn.Sequential(
         nn.TransformerEncoder(
             transformer_layer,
@@ -59,6 +60,7 @@ if __name__ == '__main__':
         # ),
         num_refinement_blocks=3,
         num_latent_refinements=6,
+        num_cls_tokens=6,
         pos_weight = 3
     )
 
