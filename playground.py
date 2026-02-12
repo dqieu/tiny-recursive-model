@@ -45,7 +45,7 @@ if __name__ == '__main__':
     network = nn.Sequential(
         nn.TransformerEncoder(
             transformer_layer,
-            num_layers=2
+            num_layers=4
         ),
         nn.LayerNorm(768)
     )

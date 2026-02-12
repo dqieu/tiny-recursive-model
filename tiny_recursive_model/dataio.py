@@ -38,16 +38,17 @@ class HDF(Dataset):
             # Random crop
             start = random.randint(0, inp.shape[0] - self.length)
             inp = inp[start:start + self.length]
-        elif inp.shape[0] < self.length:
-            # Pad
-            pad_width = self.length - inp.shape[0]
-            inp = np.pad(inp, ((0, pad_width), (0, 0)), mode='constant')
+        # elif inp.shape[0] < self.length:
+        #     # Pad
+        #     pad_width = self.length - inp.shape[0]
+        #     inp = np.pad(inp, ((0, pad_width), (0, 0)), mode='constant')
         return torch.Tensor(inp), lab
 
 def padded_batch(batch):
     xs, ys = zip(*batch)
-
+    # lengths = torch.tensor([x.shape[0] for x in xs])
     xs = pad_sequence(xs, batch_first=True)  # pad to max length
+    # B, T, _ = xs.shape
+    # pad_mask = torch.arange(T).expand(B, T) >= lengths
     ys = torch.tensor(ys)
-
     return xs, ys
